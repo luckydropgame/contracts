@@ -203,11 +203,10 @@ contract luckydrop{
     }
 
     uint256 gameIdIndex;
-
-    address adminAddress;
+    address payable public adminAddress;
 
     constructor() {
-        adminAddress  = msg.sender;
+        adminAddress  = payable(msg.sender);
     }
 
     mapping (uint256 => Game) games;
@@ -222,6 +221,8 @@ contract luckydrop{
     
     function bet(uint256 gameId, string memory team ) public onlyHuman payable  {
         // string memory team1 = "team1";
+        require(msg.value != 0, "Error, msg.value must be higher that 0");
+
         require(gameId <= gameIdIndex && gameId >= 0, "gameId param is not valid");
         //require(games[gameId].startTime <= block.timestamp  && games[gameId].endTime >= block.timestamp, "game is not open");
         // require( keccak256(abi.encodePacked(team)) == keccak256(abi.encodePacked("team1"))
@@ -277,7 +278,7 @@ contract luckydrop{
     }
 
 
-    function claimGameResult(uint256 gameId) public onlyHuman{
+    function claimGameResult(uint256 gameId) public onlyHuman payable{
         require(gameId <= gameIdIndex && gameId >= 0, "gameId param is not valid");
         require(games[gameId].status == 2, "game result is not set");
 
@@ -291,16 +292,33 @@ contract luckydrop{
             uint256 userRewaldTotal = SafeMath.div(SafeMath.mul(total, 9), 10);
 
             uint256 userAmount = betData[gameId][team][msg.sender]; 
-            uint256 percent =  SafeMath.div(userAmount * 100, g.statisticData[team]);
+            uint256 percent =  SafeMath.div(userAmount * 100000, g.statisticData[team]);
             uint256 reward = SafeMath.mul(percent, userRewaldTotal);
 
-            payable(address(this)).transfer(SafeMath.div(reward,100));
+            adminAddress.transfer(SafeMath.div(reward, 100000));
             claimFlag[msg.sender][gameId] = true;
         }
 
     }
 
-     function queryUserClaim(uint256 gameId) public returns (uint256, uint256, bool){
+    function testCal(uint256 team1,uint256 team2, uint256 equal, uint256 userAmount) public view returns (uint256, uint256,uint256, uint256){
+        uint256 total = team1 + team2 + equal;
+        uint256 userRewaldTotal = SafeMath.div(SafeMath.mul(total, 9), 10);
+
+        uint256 percent =  SafeMath.div(userAmount * 100000, team1);
+        uint256 reward = SafeMath.mul(percent, userRewaldTotal);
+        uint256 real = SafeMath.div(reward,100000);
+
+        return (userRewaldTotal, percent, reward, real);
+
+    }
+
+    function withdrawBNB(uint256 amount) public payable onlyAdmin {
+        require(address(this).balance >= amount,  "contract has insufficent balance");
+        adminAddress.transfer( amount);
+    }
+
+     function queryUserClaim(uint256 gameId) public view returns (uint256, uint256, bool){
         require(gameId <= gameIdIndex && gameId >= 0, "gameId param is not valid");
         require(games[gameId].status == 2, "game result is not set");
 
@@ -389,5 +407,6 @@ contract luckydrop{
         uint256 balanceOfContract = token.balanceOf(address(this));
         return (allowance, balanceOfSender, balanceOfContract);
     }
+    //2000000000000000
     
 }
